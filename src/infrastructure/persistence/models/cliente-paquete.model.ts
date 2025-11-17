@@ -58,6 +58,18 @@ export class ClientePaqueteModel extends Model {
   @Column({ type: DataType.STRING(20), field: 'frecuencia_tipo' })
   frecuenciaTipo!: EFrecuenciaTipo;
 
+  @AllowNull(true)
+  @Column({ type: DataType.INTEGER, field: 'frecuencia_valor' })
+  frecuenciaValor!: number | null;
+
+  @AllowNull(false)
+  @Column({ type: DataType.DATE, field: 'fecha_inicio' })
+  fechaInicio!: Date;
+
+  @AllowNull(true)
+  @Column({ type: DataType.DATE, field: 'fecha_fin' })
+  fechaFin!: Date | null;
+
   @Default(EEstado.ACTIVO)
   @AllowNull(false)
   @Column({ type: DataType.STRING(20) })

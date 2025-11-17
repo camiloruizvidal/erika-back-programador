@@ -3,11 +3,9 @@ import {
   Post,
   HttpCode,
   HttpStatus,
-  UseGuards,
   Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiCreatedResponse } from '@nestjs/swagger';
-import { JwtTenantGuard } from '../guards/jwt-tenant.guard';
 import { CuentasCobroService } from '../../application/services/cuentas-cobro.service';
 import { ManejadorError } from '../../utils/manejador-error/manejador-error';
 
@@ -23,7 +21,6 @@ export class CuentasCobroController {
 
   @Post('generate')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(JwtTenantGuard)
   @ApiOperation({
     summary: 'Generar cuentas de cobro',
     description:

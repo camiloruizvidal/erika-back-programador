@@ -34,6 +34,10 @@ export class ConceptoAdicionalModel extends Model {
   @Column({ type: DataType.BIGINT, field: 'cliente_id' })
   clienteId!: number;
 
+  @AllowNull(true)
+  @Column({ type: DataType.BIGINT, field: 'cliente_paquete_id' })
+  clientePaqueteId!: number | null;
+
   @AllowNull(false)
   @Column({ type: DataType.STRING(255) })
   concepto!: string;

@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { QueryTypes } from 'sequelize';
 import { Transformador } from '../../../utils/transformador.util';
 import { CuentaCobroModel } from '../models/cuenta-cobro.model';
@@ -41,6 +42,7 @@ export interface ICrearCuentaCobroServicio {
 }
 
 export class CuentaCobroRepository {
+  private static readonly logger = new Logger(CuentaCobroRepository.name);
   static async crearCuentaCobro(
     datos: ICrearCuentaCobro,
   ): Promise<ICuentaCobro> {
@@ -104,7 +106,7 @@ export class CuentaCobroRepository {
   }
 
   static async generarCuentasCobroMasivo(
-    diaCobro: number,
+    idsPaquetesElegibles: number[],
     fechaCobro: Date,
     inicioDia: Date,
     finDia: Date,
@@ -124,6 +126,13 @@ export class CuentaCobroRepository {
     const transaction = await sequelize.transaction();
 
     try {
+      if (idsPaquetesElegibles.length === 0) {
+        await transaction.commit();
+        return true;
+      }
+
+      const idsPaquetesString = idsPaquetesElegibles.join(',');
+
       const queryCompleta = `
         WITH paquetes_elegibles AS (
           SELECT
@@ -135,15 +144,16 @@ export class CuentaCobroRepository {
           FROM
             cliente_paquetes cliente_paquete
           LEFT JOIN conceptos_adicionales concepto_adicional ON
-            concepto_adicional.cliente_id = cliente_paquete.cliente_id
-            AND concepto_adicional.tenant_id = cliente_paquete.tenant_id
+            concepto_adicional.cliente_paquete_id = cliente_paquete.id
             AND concepto_adicional.aplicado = false
             AND concepto_adicional.siguiente_cuenta_cobro = true
             AND concepto_adicional.deleted_at IS NULL
           WHERE
             cliente_paquete.estado = 'activo'
-            AND cliente_paquete.dia_cobro = :diaCobro
             AND cliente_paquete.deleted_at IS NULL
+            AND cliente_paquete.fecha_inicio <= :fechaCobro::timestamp
+            AND (cliente_paquete.fecha_fin IS NULL OR cliente_paquete.fecha_fin >= :fechaCobro::timestamp)
+            AND cliente_paquete.id IN (${idsPaquetesString})
             AND cliente_paquete.id NOT IN (
               SELECT DISTINCT cuenta_cobro_existente.cliente_paquete_id
               FROM cuentas_cobro cuenta_cobro_existente
@@ -183,54 +193,57 @@ export class CuentaCobroRepository {
             NOW()
           FROM
             paquetes_elegibles
-        ),
-        servicios_cuentas_cobro_insertados AS (
-          INSERT INTO cuentas_cobro_servicios (
-            cuenta_cobro_id,
-            cliente_paquete_servicio_id,
-            nombre_servicio,
-            valor_original,
-            valor_acordado,
-            created_at,
-            updated_at
-          )
-          SELECT
-            cuenta_cobro_insertada.id,
-            cliente_paquete_servicio.id,
-            cliente_paquete_servicio.nombre_servicio,
-            cliente_paquete_servicio.valor_original,
-            cliente_paquete_servicio.valor_acordado,
-            NOW(),
-            NOW()
-          FROM
-            cuentas_cobro_insertadas cuenta_cobro_insertada
-          INNER JOIN cliente_paquete_servicios cliente_paquete_servicio ON
-            cliente_paquete_servicio.cliente_paquete_id = cuenta_cobro_insertada.cliente_paquete_id
-            AND cliente_paquete_servicio.deleted_at IS NULL
         )
+        INSERT INTO cuentas_cobro_servicios (
+          cuenta_cobro_id,
+          cliente_paquete_servicio_id,
+          nombre_servicio,
+          valor_original,
+          valor_acordado,
+          created_at,
+          updated_at
+        )
+        SELECT
+          cuenta_cobro.id,
+          cliente_paquete_servicio.id,
+          cliente_paquete_servicio.nombre_servicio,
+          cliente_paquete_servicio.valor_original,
+          cliente_paquete_servicio.valor_acordado,
+          NOW(),
+          NOW()
+        FROM
+          cuentas_cobro cuenta_cobro
+        INNER JOIN cliente_paquetes cliente_paquete ON
+          cliente_paquete.id = cuenta_cobro.cliente_paquete_id
+          AND cliente_paquete.deleted_at IS NULL
+        INNER JOIN cliente_paquete_servicios cliente_paquete_servicio ON
+          cliente_paquete_servicio.cliente_paquete_id = cliente_paquete.id
+          AND cliente_paquete_servicio.deleted_at IS NULL
+        WHERE
+          cuenta_cobro.fecha_cobro = :fechaCobro::timestamp
+          AND cuenta_cobro.deleted_at IS NULL;
+
         UPDATE conceptos_adicionales concepto_adicional
         SET
           aplicado = true,
-          cuenta_cobro_id = cuenta_cobro_nueva.id,
+          cuenta_cobro_id = cuenta_cobro.id,
           fecha_aplicacion = NOW(),
           mes_aplicacion = :mesActual,
           anio_aplicacion = :anioActual,
           updated_at = NOW()
         FROM
-          cuentas_cobro cuenta_cobro_nueva
+          cuentas_cobro cuenta_cobro
         WHERE
-          concepto_adicional.cliente_id = cuenta_cobro_nueva.cliente_id
-          AND concepto_adicional.tenant_id = cuenta_cobro_nueva.tenant_id
+          concepto_adicional.cliente_paquete_id = cuenta_cobro.cliente_paquete_id
           AND concepto_adicional.aplicado = false
           AND concepto_adicional.siguiente_cuenta_cobro = true
           AND concepto_adicional.deleted_at IS NULL
-          AND cuenta_cobro_nueva.fecha_cobro = :fechaCobro::timestamp
-          AND cuenta_cobro_nueva.deleted_at IS NULL;
+          AND cuenta_cobro.fecha_cobro = :fechaCobro::timestamp
+          AND cuenta_cobro.deleted_at IS NULL;
       `;
 
       await sequelize.query(queryCompleta, {
         replacements: {
-          diaCobro,
           fechaCobro: fechaCobroISO,
           inicioDia: inicioDiaISO,
           finDia: finDiaISO,
@@ -245,6 +258,7 @@ export class CuentaCobroRepository {
       await transaction.commit();
       return true;
     } catch (error) {
+      CuentaCobroRepository.logger.error(error);
       await transaction.rollback();
       throw error;
     }
