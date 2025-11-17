@@ -28,8 +28,7 @@ export class CuentasCobroService {
     });
 
     try {
-      const paquetesActivos =
-        (await ClientePaqueteRepository.buscarActivos()) as ClientePaqueteModel[];
+      const paquetesActivos = await ClientePaqueteRepository.buscarActivos();
 
       const idsPaquetesElegibles = this.filtrarPaquetesElegibles(
         paquetesActivos,
@@ -101,10 +100,8 @@ export class CuentasCobroService {
     const idsElegibles: number[] = [];
 
     for (const paquete of paquetes) {
-      const fechaInicio = moment.utc(paquete.fechaInicio as Date);
-      const fechaFin = paquete.fechaFin
-        ? moment.utc(paquete.fechaFin as Date)
-        : null;
+      const fechaInicio = moment.utc(paquete.fechaInicio);
+      const fechaFin = paquete.fechaFin ? moment.utc(paquete.fechaFin) : null;
 
       if (fechaInicio.isAfter(fechaObjetivo)) {
         continue;
@@ -116,7 +113,7 @@ export class CuentasCobroService {
 
       let esElegible = false;
 
-      const frecuenciaTipo = paquete.frecuenciaTipo as EFrecuenciaTipo;
+      const frecuenciaTipo = paquete.frecuenciaTipo;
 
       if (frecuenciaTipo === EFrecuenciaTipo.MENSUAL) {
         if (paquete.diaCobro === fechaObjetivo.date()) {
