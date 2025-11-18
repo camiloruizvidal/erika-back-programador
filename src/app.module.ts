@@ -8,10 +8,23 @@ import { CuentasCobroController } from './presentation/controllers/cuentas-cobro
 import { CuentasCobroService } from './application/services/cuentas-cobro.service';
 import { ManejadorError } from './utils/manejador-error/manejador-error';
 import { DatabaseModule } from './infrastructure/persistence/database/database.module';
+import { KafkaService } from './infrastructure/messaging/kafka/kafka.service';
+import { PdfService } from './application/services/pdf.service';
+import { PdfConsumerService } from './application/services/pdf-consumer.service';
+import { PagosService } from './application/services/pagos.service';
 
 @Module({
   imports: [HttpModule, DatabaseModule],
   controllers: [AppController, PdfPruebaController, CuentasCobroController],
-  providers: [AppService, PdfPruebaService, CuentasCobroService, ManejadorError],
+  providers: [
+    AppService,
+    PdfPruebaService,
+    CuentasCobroService,
+    ManejadorError,
+    KafkaService,
+    PdfService,
+    PdfConsumerService,
+    PagosService,
+  ],
 })
 export class AppModule {}

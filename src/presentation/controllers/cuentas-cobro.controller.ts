@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Post,
-  HttpCode,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
+import { Controller, Post, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiCreatedResponse } from '@nestjs/swagger';
 import { CuentasCobroService } from '../../application/services/cuentas-cobro.service';
 import { ManejadorError } from '../../utils/manejador-error/manejador-error';
@@ -39,6 +33,10 @@ export class CuentasCobroController {
     },
   })
   async generarCuentasCobro(): Promise<{ mensaje: string }> {
+    Logger.verbose(
+      '✅ PROGRAMADOR: Se recibió petición POST /api/v1/billing/generate',
+      'CuentasCobroController',
+    );
     try {
       return await this.cuentasCobroService.iniciarGeneracionCuentasCobro();
     } catch (error) {
@@ -47,4 +45,3 @@ export class CuentasCobroController {
     }
   }
 }
-

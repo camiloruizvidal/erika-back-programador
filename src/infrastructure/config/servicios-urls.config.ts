@@ -6,4 +6,3 @@ export class ServiciosUrls {
   static readonly pdfGenericoBaseUrl = Config.pdfGenericoBaseUrl;
   static readonly pagosBaseUrl = Config.pagosBaseUrl;
 }
-

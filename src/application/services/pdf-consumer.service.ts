@@ -16,6 +16,7 @@ export class PdfConsumerService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
+    Logger.verbose('✅ PROGRAMADOR: PdfConsumerService inicializando...', 'PdfConsumerService');
     if (!Config.kafkaBroker || !Config.kafkaGroupId) {
       this.logger.warn(
         'Kafka no configurado. Consumer de PDFs no se iniciará.',
@@ -26,8 +27,9 @@ export class PdfConsumerService implements OnModuleInit {
   }
 
   private async suscribirAGeneracionCompletada(): Promise<void> {
+    Logger.verbose('✅ PROGRAMADOR: Suscribiéndose a Kafka topic - generacion_cuentas_cobro_completada', 'PdfConsumerService');
     await this.kafkaService.crearConsumer(
-      Config.kafkaGroupId,
+      Config.kafkaGroupId!,
       'generacion_cuentas_cobro_completada',
       this.procesarGeneracionCompletada.bind(this),
     );
@@ -36,7 +38,7 @@ export class PdfConsumerService implements OnModuleInit {
   private async procesarGeneracionCompletada(
     payload: EachMessagePayload,
   ): Promise<void> {
-    this.logger.log('=== MENSAJE KAFKA RECIBIDO EN PROGRAMADOR ===');
+    Logger.verbose('✅ PROGRAMADOR: Mensaje Kafka recibido - generacion_cuentas_cobro_completada', 'PdfConsumerService');
     this.logger.log(`Topic: generacion_cuentas_cobro_completada`);
     this.logger.log(`Partition: ${payload.partition}`);
     this.logger.log(`Offset: ${payload.message.offset}`);

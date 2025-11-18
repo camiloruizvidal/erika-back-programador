@@ -11,9 +11,7 @@ export class CuentasCobroService {
 
   async iniciarGeneracionCuentasCobro(): Promise<{ mensaje: string }> {
     try {
-      this.logger.log(
-        'Iniciando proceso de generación de cuentas de cobro...',
-      );
+      this.logger.log('Iniciando proceso de generación de cuentas de cobro...');
 
       const url = `${ServiciosUrls.cobrosBaseUrl}/api/v1/billing/generate`;
 
@@ -35,4 +33,3 @@ export class CuentasCobroService {
     }
   }
 }
-
