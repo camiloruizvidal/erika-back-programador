@@ -147,12 +147,16 @@ export class EnviarCorreosService {
 
           if (cuentaCobro.urlPdf) {
             try {
-              this.logger.debug(
+              this.logger.log(
                 `Leyendo PDF para cuenta de cobro ${cuentaCobro.id} desde: ${cuentaCobro.urlPdf}`,
               );
 
               const bufferPdf = await this.storageService.leer(
                 cuentaCobro.urlPdf,
+              );
+
+              this.logger.log(
+                `PDF leído exitosamente para cuenta ${cuentaCobro.id}: buffer length = ${bufferPdf?.length || 0} bytes`,
               );
 
               if (!bufferPdf || bufferPdf.length === 0) {
@@ -174,29 +178,56 @@ export class EnviarCorreosService {
                     contenidoBase64,
                   };
 
-                  this.logger.debug(
+                  this.logger.log(
                     `PDF adjunto preparado para cuenta ${cuentaCobro.id}: ${nombreArchivo} (${Math.round(contenidoBase64.length / 1024)} KB)`,
+                  );
+                  this.logger.debug(
+                    `Tamaño del contenido base64: ${contenidoBase64.length} caracteres`,
                   );
                 }
               }
             } catch (error) {
-              this.logger.warn(
+              this.logger.error(
                 `No se pudo leer el archivo PDF ${cuentaCobro.urlPdf} para cuenta de cobro ${cuentaCobro.id}: ${(error as Error).message}`,
               );
               if (error instanceof Error && error.stack) {
-                this.logger.debug(`Stack trace: ${error.stack}`);
+                this.logger.error(`Stack trace: ${error.stack}`);
               }
             }
+          } else {
+            this.logger.warn(
+              `Cuenta de cobro ${cuentaCobro.id} no tiene urlPdf definido`,
+            );
           }
+
+          const nombreEmpresa = tenant?.nombre || 'Empresa';
+          const codigoCuentaCobro = cuentaCobro.id;
 
           const datosCorreo: IEnviarCorreoRequest = {
             destinatario: cliente.correo,
-            asunto: `Cuenta de Cobro - ${fechaCobroFormateada}`,
+            asunto: `${nombreEmpresa}, cuenta de cobro ${codigoCuentaCobro}`,
             cuerpo,
             tipo: 'html',
             urlPdf: cuentaCobro.urlPdf,
             pdfAdjunto,
           };
+
+          if (pdfAdjunto) {
+            this.logger.log(
+              `Enviando correo con PDF adjunto: ${pdfAdjunto.nombreArchivo} (${Math.round(pdfAdjunto.contenidoBase64.length / 1024)} KB)`,
+            );
+            this.logger.debug(
+              `pdfAdjunto preparado - nombreArchivo: ${pdfAdjunto.nombreArchivo}, contenidoBase64 length: ${pdfAdjunto.contenidoBase64.length}`,
+            );
+          } else {
+            this.logger.warn(
+              `Enviando correo SIN PDF adjunto para cuenta de cobro ${cuentaCobro.id}. urlPdf: ${cuentaCobro.urlPdf || 'null'}`,
+            );
+          }
+
+          this.logger.debug(
+            `Datos del correo antes de enviar - pdfAdjunto: ${pdfAdjunto ? 'presente' : 'ausente'}`,
+          );
 
           await this.enviarCorreo(datosCorreo);
 
@@ -240,6 +271,10 @@ export class EnviarCorreosService {
 
     this.logger.log(
       `Llamando a erika-back-notificaciones: ${url} para enviar correo a ${datos.destinatario}`,
+    );
+
+    this.logger.debug(
+      `Request payload - pdfAdjunto: ${datos.pdfAdjunto ? `presente (${datos.pdfAdjunto.nombreArchivo}, ${Math.round(datos.pdfAdjunto.contenidoBase64.length / 1024)} KB)` : 'ausente'}`,
     );
 
     try {
