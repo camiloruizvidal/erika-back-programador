@@ -118,5 +118,59 @@ export class CuentaCobroRepository {
 
     return Transformador.extraerDataValues(tenant);
   }
+
+  static async buscarSinEnvioCorreoConRelaciones(
+    inicioDia: Date,
+    finDia: Date,
+    limit: number,
+    offset: number,
+  ): Promise<{ rows: CuentaCobroModel[]; count: number }> {
+    const resultado = await CuentaCobroModel.findAndCountAll({
+      where: {
+        fechaCobro: {
+          [Op.between]: [inicioDia, finDia],
+        },
+        siEnvioCorreo: false,
+        urlPdf: {
+          [Op.ne]: null,
+        },
+      },
+      include: [
+        {
+          model: CuentaCobroServicioModel,
+          as: 'servicios',
+          required: false,
+        },
+        {
+          model: ConceptoAdicionalModel,
+          as: 'conceptosAdicionales',
+          required: false,
+        },
+      ],
+      limit,
+      offset,
+      order: [['id', 'ASC']],
+      paranoid: true,
+    });
+
+    return Transformador.extraerDataValues(resultado);
+  }
+
+  static async actualizarEnvioCorreo(
+    id: number,
+    fechaEnvio: Date,
+  ): Promise<CuentaCobroModel | null> {
+    const cuentaCobro = await CuentaCobroModel.findByPk(id);
+
+    if (!cuentaCobro) {
+      return null;
+    }
+
+    cuentaCobro.siEnvioCorreo = true;
+    cuentaCobro.fechaEnvioCorreo = fechaEnvio;
+    await cuentaCobro.save();
+
+    return Transformador.extraerDataValues(cuentaCobro);
+  }
 }
 

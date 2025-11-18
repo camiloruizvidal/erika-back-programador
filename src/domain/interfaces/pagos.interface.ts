@@ -6,5 +6,8 @@ export interface IGenerarLinkPagoRequest {
   correoCliente: string;
   nombreCliente: string;
   fechaLimitePago: Date;
+  identificacionCliente?: string;
+  telefonoCliente?: string;
+  tipoDocumentoCliente?: string;
 }
 

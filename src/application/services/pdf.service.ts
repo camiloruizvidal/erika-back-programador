@@ -93,7 +93,7 @@ export class PdfService {
 
           if (!linkPago) {
             this.logger.log(
-              `Generando link de pago Woompi para cuenta de cobro ID: ${cuentaCobro.id}`,
+              `Generando link de pago Woompi para cuenta de cobro ID ->: ${cuentaCobro.id}`,
             );
 
             linkPago = await this.pagosService.generarLinkPago({
@@ -104,6 +104,9 @@ export class PdfService {
               correoCliente: cliente.correo,
               nombreCliente: cliente.nombreCompleto,
               fechaLimitePago,
+              identificacionCliente: cliente.identificacion || undefined,
+              telefonoCliente: cliente.telefono || undefined,
+              tipoDocumentoCliente: cliente.identificacion ? 'CC' : undefined,
             });
 
             await CuentaCobroRepository.actualizarLinkPago(

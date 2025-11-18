@@ -12,6 +12,7 @@ import { KafkaService } from './infrastructure/messaging/kafka/kafka.service';
 import { PdfService } from './application/services/pdf.service';
 import { PdfConsumerService } from './application/services/pdf-consumer.service';
 import { PagosService } from './application/services/pagos.service';
+import { EnviarCorreosService } from './application/services/enviar-correos.service';
 
 @Module({
   imports: [HttpModule, DatabaseModule],
@@ -25,6 +26,7 @@ import { PagosService } from './application/services/pagos.service';
     PdfService,
     PdfConsumerService,
     PagosService,
+    EnviarCorreosService,
   ],
 })
 export class AppModule {}

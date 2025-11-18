@@ -5,6 +5,7 @@ import { IGeneracionCuentasCobroCompletada } from '../../domain/interfaces/kafka
 import { IPdfsCuentasCobroGenerados } from '../../domain/interfaces/kafka-messages.interface';
 import { Config } from '../../infrastructure/config/config';
 import { PdfService } from './pdf.service';
+import { EnviarCorreosService } from './enviar-correos.service';
 
 @Injectable()
 export class PdfConsumerService implements OnModuleInit {
@@ -13,6 +14,7 @@ export class PdfConsumerService implements OnModuleInit {
   constructor(
     private readonly kafkaService: KafkaService,
     private readonly pdfService: PdfService,
+    private readonly enviarCorreosService: EnviarCorreosService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -64,6 +66,16 @@ export class PdfConsumerService implements OnModuleInit {
         `Generación de PDFs completada. Total generados: ${cantidadPdfsGenerados}`,
       );
 
+      const cantidadCorreosEnviados =
+        await this.enviarCorreosService.enviarCorreosPorBatch(
+          fechaCobro,
+          500,
+        );
+
+      this.logger.log(
+        `Envío de correos completado. Total enviados: ${cantidadCorreosEnviados}`,
+      );
+
       const producer = await this.kafkaService.crearProducer();
 
       await this.kafkaService.enviarMensaje(
@@ -72,6 +84,7 @@ export class PdfConsumerService implements OnModuleInit {
         {
           fechaCobro: mensaje.fechaCobro,
           cantidadPdfsGenerados,
+          cantidadCorreosEnviados,
           timestamp: new Date().toISOString(),
         } as IPdfsCuentasCobroGenerados,
       );
@@ -79,7 +92,7 @@ export class PdfConsumerService implements OnModuleInit {
       await producer.disconnect();
 
       this.logger.log(
-        `Evento pdfs_cuentas_cobro_generados publicado. Total: ${cantidadPdfsGenerados}`,
+        `Evento pdfs_cuentas_cobro_generados publicado. PDFs: ${cantidadPdfsGenerados}, Correos: ${cantidadCorreosEnviados}`,
       );
     } catch (error) {
       const mensajeError =

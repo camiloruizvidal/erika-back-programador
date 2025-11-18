@@ -7,6 +7,7 @@ export interface IGeneracionCuentasCobroCompletada {
 export interface IPdfsCuentasCobroGenerados {
   fechaCobro: string;
   cantidadPdfsGenerados: number;
+  cantidadCorreosEnviados: number;
   timestamp: string;
 }
 
