@@ -53,8 +53,10 @@ export class PdfConsumerService implements OnModuleInit {
 
       const fechaCobro = new Date(mensaje.fechaCobro);
 
-      const cantidadPdfsGenerados =
-        await this.pdfService.generarPdfsPorBatch(fechaCobro, 500);
+      const cantidadPdfsGenerados = await this.pdfService.generarPdfsPorBatch(
+        fechaCobro,
+        500,
+      );
 
       this.logger.log(
         `Generación de PDFs completada. Total generados: ${cantidadPdfsGenerados}`,
@@ -89,4 +91,3 @@ export class PdfConsumerService implements OnModuleInit {
     }
   }
 }
-

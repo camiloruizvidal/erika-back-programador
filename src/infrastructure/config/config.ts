@@ -10,16 +10,16 @@ export class Config {
   static readonly cobrosBaseUrl = process.env.COBROS_BASE_URL;
   static readonly pdfGenericoBaseUrl = process.env.PDF_GENERICO_BASE_URL;
   static readonly pagosBaseUrl = process.env.PAGOS_BASE_URL;
-  static readonly dbHost: string = `${process.env.DB_HOST}`;
-  static readonly dbPuerto: number = Number(process.env.DB_PORT);
-  static readonly dbUsuario: string = `${process.env.DB_USER}`;
-  static readonly dbContrasena: string = `${process.env.DB_PASSWORD}`;
-  static readonly dbBaseDatos: string = `${process.env.DB_NAME}`;
-  static readonly dbDialect: Dialect = process.env.DB_DIALECT as Dialect;
-  static readonly dbLogging: boolean = process.env.DB_LOGGING === 'true';
-  static readonly kafkaBroker: string = `${process.env.KAFKA_BROKER}`;
-  static readonly kafkaClientId: string = `${process.env.KAFKA_CLIENT_ID}`;
-  static readonly kafkaGroupId: string = `${process.env.KAFKA_GROUP_ID}`;
+  static readonly dbHost = process.env.DB_HOST;
+  static readonly dbPuerto = Number(process.env.DB_PORT);
+  static readonly dbUsuario = process.env.DB_USER;
+  static readonly dbContrasena = process.env.DB_PASSWORD;
+  static readonly dbBaseDatos = process.env.DB_NAME;
+  static readonly dbDialect = process.env.DB_DIALECT as Dialect;
+  static readonly dbLogging = process.env.DB_LOGGING === 'true';
+  static readonly kafkaBroker = process.env.KAFKA_BROKER;
+  static readonly kafkaClientId = process.env.KAFKA_CLIENT_ID;
+  static readonly kafkaGroupId = process.env.KAFKA_GROUP_ID as string;
 }
 
 const errors: string[] = [];

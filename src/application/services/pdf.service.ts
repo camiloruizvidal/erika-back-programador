@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import * as path from 'path';
 import { ServiciosUrls } from '../../infrastructure/config/servicios-urls.config';
 import * as moment from 'moment-timezone';
 import { CuentaCobroRepository } from '../../infrastructure/persistence/repositories/cuenta-cobro.repository';
@@ -10,15 +9,7 @@ import { PagosService } from './pagos.service';
 import { CuentaCobroModel } from '../../infrastructure/persistence/models/cuenta-cobro.model';
 import { ClienteModel } from '../../infrastructure/persistence/models/cliente.model';
 import { TenantModel } from '../../infrastructure/persistence/models/tenant.model';
-
-export interface IPdfGeneratorRequest {
-  plantilla: Buffer | string;
-  datos: Record<string, any>;
-  rutaSalida: string;
-  nombreArchivo: string;
-  tieneContrasena?: boolean;
-  contrasena?: string;
-}
+import { IPdfGeneratorRequest } from '../../domain/interfaces/pdf-generator.interface';
 
 @Injectable()
 export class PdfService {
@@ -146,12 +137,8 @@ export class PdfService {
             continue;
           }
 
-          const rutaPlantillaAbsoluta = this.resolverRutaPlantilla(
-            plantilla.plantillaPdf,
-          );
-
           const datosPdf: IPdfGeneratorRequest = {
-            plantilla: rutaPlantillaAbsoluta,
+            plantilla: plantilla.plantillaPdf,
             datos: this.mapearDatosParaPlantilla(
               cuentaCobro,
               cliente,
@@ -239,13 +226,4 @@ export class PdfService {
     }
     return fecha.toDate();
   }
-
-  private resolverRutaPlantilla(rutaPlantilla: string): string {
-    if (path.isAbsolute(rutaPlantilla)) {
-      return rutaPlantilla;
-    }
-    const directorioBase = path.resolve(__dirname, '../../../..');
-    return path.join(directorioBase, rutaPlantilla);
-  }
 }
-
