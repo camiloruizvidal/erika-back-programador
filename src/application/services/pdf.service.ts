@@ -28,18 +28,13 @@ export class PdfService {
     let totalGenerados = 0;
     let tieneMasRegistros = true;
 
-    this.logger.log(
+    this.logger.verbose(
       `Iniciando generación de PDFs por batches de ${batchSize} para fecha: ${fechaCobro.toISOString()}`,
     );
-
-    const inicioDia = moment.utc(fechaCobro).startOf('day').toDate();
-    const finDia = moment.utc(fechaCobro).endOf('day').toDate();
 
     while (tieneMasRegistros) {
       const resultado =
         await CuentaCobroRepository.buscarPorFechaCobroConRelaciones(
-          inicioDia,
-          finDia,
           batchSize,
           offset,
           true,
@@ -50,7 +45,7 @@ export class PdfService {
         break;
       }
 
-      this.logger.log(
+      this.logger.verbose(
         `Procesando batch: ${offset} - ${offset + resultado.rows.length} de ${resultado.count} cuentas de cobro sin PDF`,
       );
 
@@ -61,10 +56,14 @@ export class PdfService {
           );
 
           if (!cliente) {
-            this.logger.warn(
+            this.logger.verbose(
               `No se encontró cliente con ID ${cuentaCobro.clienteId} para cuenta de cobro ${cuentaCobro.id}`,
             );
             continue;
+          } else {
+            this.logger.verbose(
+              `Se encontró cliente con ID ${cuentaCobro.clienteId} para cuenta de cobro ${cuentaCobro.id}`,
+            );
           }
 
           const plantilla = await PlantillaRepository.buscarPorTenantYTipo(
@@ -73,7 +72,7 @@ export class PdfService {
           );
 
           if (!plantilla) {
-            this.logger.warn(
+            this.logger.verbose(
               `No se encontró plantilla para tenant ${cuentaCobro.tenantId} tipo cuenta_cobro`,
             );
             continue;
@@ -92,7 +91,7 @@ export class PdfService {
           let linkPago = cuentaCobro.linkPago;
 
           if (!linkPago) {
-            this.logger.log(
+            this.logger.verbose(
               `Generando link de pago Woompi para cuenta de cobro ID ->: ${cuentaCobro.id}`,
             );
 
@@ -106,7 +105,7 @@ export class PdfService {
               fechaLimitePago,
               identificacionCliente: cliente.identificacion || undefined,
               telefonoCliente: cliente.telefono || undefined,
-              tipoDocumentoCliente: cliente.identificacion ? 'CC' : undefined,
+              tipoDocumentoCliente: cliente.identificacion || 'CC',
             });
 
             await CuentaCobroRepository.actualizarLinkPago(
@@ -116,7 +115,7 @@ export class PdfService {
           }
 
           if (!linkPago) {
-            this.logger.warn(
+            this.logger.verbose(
               `No se pudo generar el link de pago para cuenta de cobro ${cuentaCobro.id}, omitiendo`,
             );
             continue;
@@ -127,14 +126,14 @@ export class PdfService {
           );
 
           if (!plantilla.plantillaPdf) {
-            this.logger.warn(
+            this.logger.verbose(
               `No se encontró ruta de plantilla PDF para cuenta de cobro ${cuentaCobro.id}`,
             );
             continue;
           }
 
           if (!plantilla.rutaPdf) {
-            this.logger.warn(
+            this.logger.verbose(
               `No se encontró ruta base para guardar PDF para cuenta de cobro ${cuentaCobro.id}`,
             );
             continue;
@@ -160,12 +159,9 @@ export class PdfService {
 
           totalGenerados++;
         } catch (error) {
-          const mensajeError =
-            (error as any)?.response?.data?.message ||
-            (error as any)?.message ||
-            'Error desconocido';
+          console.trace();
           this.logger.error(
-            `Error al generar PDF para cuenta de cobro ${cuentaCobro.id}: ${mensajeError}`,
+            `Error al generar PDF para cuenta de cobro ${cuentaCobro.id}: ${JSON.stringify(error, null, 2)}`,
           );
         }
       }
@@ -174,7 +170,7 @@ export class PdfService {
       tieneMasRegistros = resultado.rows.length === batchSize;
     }
 
-    this.logger.log(
+    this.logger.verbose(
       `Generación de PDFs completada. Total generados: ${totalGenerados}`,
     );
 

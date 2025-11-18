@@ -11,20 +11,13 @@ export class CuentaCobroRepository {
   private constructor() {}
 
   static async buscarPorFechaCobroConRelaciones(
-    inicioDia: Date,
-    finDia: Date,
     limit: number,
     offset: number,
     soloSinPdf: boolean = true,
   ): Promise<{ rows: CuentaCobroModel[]; count: number }> {
     const where: {
-      fechaCobro: { [Op.between]: Date[] };
       urlPdf?: null;
-    } = {
-      fechaCobro: {
-        [Op.between]: [inicioDia, finDia],
-      },
-    };
+    } = {};
 
     if (soloSinPdf) {
       where.urlPdf = null;
@@ -173,4 +166,3 @@ export class CuentaCobroRepository {
     return Transformador.extraerDataValues(cuentaCobro);
   }
 }
-
