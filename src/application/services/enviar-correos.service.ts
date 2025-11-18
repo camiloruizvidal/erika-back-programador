@@ -44,7 +44,12 @@ export class EnviarCorreosService {
           offset,
         );
 
+      this.logger.log(
+        `Buscando cuentas sin envío de correo: encontradas ${resultado.rows.length} de ${resultado.count} totales`,
+      );
+
       if (resultado.rows.length === 0) {
+        this.logger.log('No hay más cuentas sin envío de correo');
         tieneMasRegistros = false;
         break;
       }
@@ -92,6 +97,15 @@ export class EnviarCorreosService {
             continue;
           }
 
+          const tenant = await CuentaCobroRepository.buscarTenantPorId(
+            cuentaCobro.tenantId,
+          );
+
+          const diasGracia =
+            await CuentaCobroRepository.buscarDiasGraciaPorClientePaqueteId(
+              cuentaCobro.clientePaqueteId,
+            );
+
           const valorTotalFormateado = new Intl.NumberFormat('es-CO', {
             style: 'currency',
             currency: 'COP',
@@ -101,14 +115,28 @@ export class EnviarCorreosService {
             .tz(cuentaCobro.fechaCobro, 'America/Bogota')
             .format('DD [de] MMMM [de] YYYY');
 
-          const cuerpoHtml = ProcesarPlantillaHtml.procesar(
+          const fechaLimitePago = moment
+            .utc(cuentaCobro.fechaCobro)
+            .add(diasGracia || 0, 'days')
+            .tz('America/Bogota')
+            .format('DD [de] MMMM [de] YYYY');
+
+          const cuerpo = ProcesarPlantillaHtml.procesar(
             plantilla.plantillaCorreo,
             {
               'cliente.nombre': cliente.nombreCompleto,
               'cliente.primer_nombre': cliente.primerNombre || '',
               'cliente.primer_apellido': cliente.primerApellido || '',
+              'empresa.nombre': tenant?.nombre || '',
+              'cuenta.valor': valorTotalFormateado,
+              'cuenta.valor_total': valorTotalFormateado,
               'cuentaCobro.valorTotal': valorTotalFormateado,
+              'cuenta.fecha_limite_pago': fechaLimitePago,
+              'cuenta.fecha_cobro': fechaCobroFormateada,
               'cuentaCobro.fechaCobro': fechaCobroFormateada,
+              'cuenta.link_pago': cuentaCobro.linkPago || '',
+              'cuenta.linkPago': cuentaCobro.linkPago || '',
+              'cuenta.url_pdf': cuentaCobro.urlPdf || '',
               urlPdf: cuentaCobro.urlPdf || '',
             },
           );
@@ -119,27 +147,53 @@ export class EnviarCorreosService {
 
           if (cuentaCobro.urlPdf) {
             try {
+              this.logger.debug(
+                `Leyendo PDF para cuenta de cobro ${cuentaCobro.id} desde: ${cuentaCobro.urlPdf}`,
+              );
+
               const bufferPdf = await this.storageService.leer(
                 cuentaCobro.urlPdf,
               );
-              const contenidoBase64 = bufferPdf.toString('base64');
-              const nombreArchivo = path.basename(cuentaCobro.urlPdf);
 
-              pdfAdjunto = {
-                nombreArchivo,
-                contenidoBase64,
-              };
+              if (!bufferPdf || bufferPdf.length === 0) {
+                this.logger.warn(
+                  `El archivo PDF ${cuentaCobro.urlPdf} está vacío para cuenta de cobro ${cuentaCobro.id}`,
+                );
+              } else {
+                const contenidoBase64 = bufferPdf.toString('base64');
+
+                if (!contenidoBase64 || contenidoBase64.length === 0) {
+                  this.logger.warn(
+                    `La conversión a base64 del PDF ${cuentaCobro.urlPdf} resultó vacía para cuenta de cobro ${cuentaCobro.id}`,
+                  );
+                } else {
+                  const nombreArchivo = path.basename(cuentaCobro.urlPdf);
+
+                  pdfAdjunto = {
+                    nombreArchivo,
+                    contenidoBase64,
+                  };
+
+                  this.logger.debug(
+                    `PDF adjunto preparado para cuenta ${cuentaCobro.id}: ${nombreArchivo} (${Math.round(contenidoBase64.length / 1024)} KB)`,
+                  );
+                }
+              }
             } catch (error) {
               this.logger.warn(
                 `No se pudo leer el archivo PDF ${cuentaCobro.urlPdf} para cuenta de cobro ${cuentaCobro.id}: ${(error as Error).message}`,
               );
+              if (error instanceof Error && error.stack) {
+                this.logger.debug(`Stack trace: ${error.stack}`);
+              }
             }
           }
 
           const datosCorreo: IEnviarCorreoRequest = {
             destinatario: cliente.correo,
             asunto: `Cuenta de Cobro - ${fechaCobroFormateada}`,
-            cuerpoHtml,
+            cuerpo,
+            tipo: 'html',
             urlPdf: cuentaCobro.urlPdf,
             pdfAdjunto,
           };
@@ -153,8 +207,20 @@ export class EnviarCorreosService {
 
           totalEnviados++;
         } catch (error) {
-          this.logger.verbose({ error: JSON.stringify(error, null, 2) });
-          this.logger.error(`Error al enviar correo para cuenta de cobro`);
+          const errorObj = error as {
+            response?: { data?: { message?: string } };
+            message?: string;
+          };
+          const mensajeError =
+            errorObj?.response?.data?.message ||
+            errorObj?.message ||
+            'Error desconocido';
+          this.logger.error(
+            `Error al enviar correo para cuenta de cobro ${cuentaCobro.id}: ${mensajeError}`,
+          );
+          if (error instanceof Error) {
+            this.logger.error(`Stack trace: ${error.stack}`);
+          }
         }
       }
 
@@ -172,10 +238,40 @@ export class EnviarCorreosService {
   private async enviarCorreo(datos: IEnviarCorreoRequest): Promise<void> {
     const url = `${ServiciosUrls.notificacionesBaseUrl}/api/v1/notificaciones/enviar-correo`;
 
-    await firstValueFrom(
-      this.httpService.post<{ mensaje: string }>(url, datos),
+    this.logger.log(
+      `Llamando a erika-back-notificaciones: ${url} para enviar correo a ${datos.destinatario}`,
     );
 
-    this.logger.log(`Correo enviado exitosamente a: ${datos.destinatario}`);
+    try {
+      const respuesta = await firstValueFrom(
+        this.httpService.post<{ enviado: boolean }>(url, datos),
+      );
+
+      this.logger.log(
+        `Correo enviado exitosamente a: ${datos.destinatario}. Respuesta: ${JSON.stringify(respuesta.data)}`,
+      );
+    } catch (error) {
+      this.logger.verbose({ error: JSON.stringify(error, null, 2) });
+      this.logger.error(
+        `Error al llamar a erika-back-notificaciones para ${datos.destinatario}:`,
+      );
+      this.logger.error(`URL: ${url}`);
+      const errorObj = error as {
+        message?: string;
+        response?: { status?: number; data?: unknown };
+      };
+      if (errorObj?.message) {
+        this.logger.error(`Error: ${errorObj.message}`);
+      }
+      if (errorObj?.response) {
+        this.logger.error(`Response status: ${errorObj.response.status}`);
+        if (errorObj.response.data) {
+          this.logger.error(
+            `Response data: ${JSON.stringify(errorObj.response.data)}`,
+          );
+        }
+      }
+      throw error;
+    }
   }
 }

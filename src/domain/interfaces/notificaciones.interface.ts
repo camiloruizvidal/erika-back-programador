@@ -1,7 +1,8 @@
 export interface IEnviarCorreoRequest {
   destinatario: string;
   asunto: string;
-  cuerpoHtml: string;
+  cuerpo: string;
+  tipo: 'html' | 'texto';
   urlPdf?: string;
   pdfAdjunto?: {
     nombreArchivo: string;
