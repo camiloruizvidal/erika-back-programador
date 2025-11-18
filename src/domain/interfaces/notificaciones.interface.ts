@@ -3,5 +3,8 @@ export interface IEnviarCorreoRequest {
   asunto: string;
   cuerpoHtml: string;
   urlPdf?: string;
+  pdfAdjunto?: {
+    nombreArchivo: string;
+    contenidoBase64: string;
+  };
 }
-

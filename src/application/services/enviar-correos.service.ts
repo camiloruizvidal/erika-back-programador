@@ -1,20 +1,24 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import * as path from 'path';
 import { ServiciosUrls } from '../../infrastructure/config/servicios-urls.config';
 import * as moment from 'moment-timezone';
 import { CuentaCobroRepository } from '../../infrastructure/persistence/repositories/cuenta-cobro.repository';
 import { PlantillaRepository } from '../../infrastructure/persistence/repositories/plantilla.repository';
-import { CuentaCobroModel } from '../../infrastructure/persistence/models/cuenta-cobro.model';
-import { ClienteModel } from '../../infrastructure/persistence/models/cliente.model';
 import { IEnviarCorreoRequest } from '../../domain/interfaces/notificaciones.interface';
 import { ProcesarPlantillaHtml } from '../../utils/functions/procesar-plantilla-html.util';
+import type { IStorage } from '../../infrastructure/storage/storage.interface';
+import { STORAGE_TOKEN } from '../../infrastructure/storage/storage.interface';
 
 @Injectable()
 export class EnviarCorreosService {
   private readonly logger = new Logger(EnviarCorreosService.name);
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    @Inject(STORAGE_TOKEN) private readonly storageService: IStorage,
+  ) {}
 
   async enviarCorreosPorBatch(
     fechaCobro: Date,
@@ -109,11 +113,35 @@ export class EnviarCorreosService {
             },
           );
 
+          let pdfAdjunto:
+            | { nombreArchivo: string; contenidoBase64: string }
+            | undefined;
+
+          if (cuentaCobro.urlPdf) {
+            try {
+              const bufferPdf = await this.storageService.leer(
+                cuentaCobro.urlPdf,
+              );
+              const contenidoBase64 = bufferPdf.toString('base64');
+              const nombreArchivo = path.basename(cuentaCobro.urlPdf);
+
+              pdfAdjunto = {
+                nombreArchivo,
+                contenidoBase64,
+              };
+            } catch (error) {
+              this.logger.warn(
+                `No se pudo leer el archivo PDF ${cuentaCobro.urlPdf} para cuenta de cobro ${cuentaCobro.id}: ${(error as Error).message}`,
+              );
+            }
+          }
+
           const datosCorreo: IEnviarCorreoRequest = {
             destinatario: cliente.correo,
             asunto: `Cuenta de Cobro - ${fechaCobroFormateada}`,
             cuerpoHtml,
             urlPdf: cuentaCobro.urlPdf,
+            pdfAdjunto,
           };
 
           await this.enviarCorreo(datosCorreo);
@@ -125,13 +153,8 @@ export class EnviarCorreosService {
 
           totalEnviados++;
         } catch (error) {
-          const mensajeError =
-            (error as any)?.response?.data?.message ||
-            (error as any)?.message ||
-            'Error desconocido';
-          this.logger.error(
-            `Error al enviar correo para cuenta de cobro ${cuentaCobro.id}: ${mensajeError}`,
-          );
+          this.logger.verbose({ error: JSON.stringify(error, null, 2) });
+          this.logger.error(`Error al enviar correo para cuenta de cobro`);
         }
       }
 
@@ -146,9 +169,7 @@ export class EnviarCorreosService {
     return totalEnviados;
   }
 
-  private async enviarCorreo(
-    datos: IEnviarCorreoRequest,
-  ): Promise<void> {
+  private async enviarCorreo(datos: IEnviarCorreoRequest): Promise<void> {
     const url = `${ServiciosUrls.notificacionesBaseUrl}/api/v1/notificaciones/enviar-correo`;
 
     await firstValueFrom(
@@ -158,4 +179,3 @@ export class EnviarCorreosService {
     this.logger.log(`Correo enviado exitosamente a: ${datos.destinatario}`);
   }
 }
-
