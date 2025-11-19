@@ -1,7 +1,17 @@
-import { Controller, Get, HttpCode, HttpStatus, Logger, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { plainToInstance } from 'class-transformer';
 import { PdfPruebaService } from '../../application/services/pdf-prueba.service';
 import { ManejadorError } from '../../utils/manejador-error/manejador-error';
+import { GenerarPdfPruebaResponseDto } from '../dto/generar-pdf-prueba.response.dto';
 
 @ApiTags('Pruebas PDF')
 @Controller('api/v1/pruebas')
@@ -23,30 +33,22 @@ export class PdfPruebaController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'PDF generado exitosamente',
-    schema: {
-      type: 'object',
-      properties: {
-        urlPdf: {
-          type: 'string',
-          example: 'https://storage.erika.com/cuentas-cobro/1_6265642.pdf',
-        },
-      },
-    },
+    type: GenerarPdfPruebaResponseDto,
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     description: 'Cuenta de cobro no encontrada',
   })
   async probarGeneracionPdf(
-    @Param('cuentaCobroId') cuentaCobroId: string,
-  ): Promise<{ urlPdf: string }> {
+    @Param('cuentaCobroId', ParseIntPipe) cuentaCobroId: number,
+  ): Promise<GenerarPdfPruebaResponseDto> {
     try {
-      const id = parseInt(cuentaCobroId, 10);
-      return await this.pdfPruebaService.probarGeneracionPdf(id);
+      const resultado =
+        await this.pdfPruebaService.probarGeneracionPdf(cuentaCobroId);
+      return plainToInstance(GenerarPdfPruebaResponseDto, resultado);
     } catch (error) {
       this.logger.error({ error: JSON.stringify(error) });
       this.manejadorError.resolverErrorApi(error);
     }
   }
 }
-

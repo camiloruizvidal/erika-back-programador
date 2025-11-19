@@ -1,7 +1,9 @@
 import { Controller, Post, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiCreatedResponse } from '@nestjs/swagger';
+import { plainToInstance } from 'class-transformer';
 import { CuentasCobroService } from '../../application/services/cuentas-cobro.service';
 import { ManejadorError } from '../../utils/manejador-error/manejador-error';
+import { GenerarCuentasCobroResponseDto } from '../dto/generar-cuentas-cobro.response.dto';
 
 @ApiTags('Cuentas de Cobro')
 @Controller('api/v1/billing')
@@ -22,23 +24,16 @@ export class CuentasCobroController {
   })
   @ApiCreatedResponse({
     description: 'Proceso de generación iniciado exitosamente',
-    schema: {
-      type: 'object',
-      properties: {
-        mensaje: {
-          type: 'string',
-          example: 'Proceso de generación de cuentas de cobro iniciado',
-        },
-      },
-    },
+    type: GenerarCuentasCobroResponseDto,
   })
-  async generarCuentasCobro(): Promise<{ mensaje: string }> {
+  async generarCuentasCobro(): Promise<GenerarCuentasCobroResponseDto> {
     Logger.verbose(
       '✅ PROGRAMADOR: Se recibió petición POST /api/v1/billing/generate',
       'CuentasCobroController',
     );
     try {
-      return await this.cuentasCobroService.iniciarGeneracionCuentasCobro();
+      const resultado = await this.cuentasCobroService.iniciarGeneracionCuentasCobro();
+      return plainToInstance(GenerarCuentasCobroResponseDto, resultado);
     } catch (error) {
       this.logger.error({ error: JSON.stringify(error) });
       this.manejadorError.resolverErrorApi(error);
