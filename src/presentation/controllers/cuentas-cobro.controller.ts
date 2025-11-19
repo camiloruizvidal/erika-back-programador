@@ -1,9 +1,22 @@
-import { Controller, Post, HttpCode, HttpStatus, Logger } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiCreatedResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiCreatedResponse,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
 import { CuentasCobroService } from '../../application/services/cuentas-cobro.service';
 import { ManejadorError } from '../../utils/manejador-error/manejador-error';
 import { GenerarCuentasCobroResponseDto } from '../dto/generar-cuentas-cobro.response.dto';
+import { ActualizarMoraResponseDto } from '../dto/actualizar-mora.response.dto';
 
 @ApiTags('Cuentas de Cobro')
 @Controller('api/v1/billing')
@@ -34,6 +47,30 @@ export class CuentasCobroController {
     try {
       const resultado = await this.cuentasCobroService.iniciarGeneracionCuentasCobro();
       return plainToInstance(GenerarCuentasCobroResponseDto, resultado);
+    } catch (error) {
+      this.logger.error({ error: JSON.stringify(error) });
+      this.manejadorError.resolverErrorApi(error);
+    }
+  }
+
+  @Get('actualizar-mora')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Actualizar cuentas de cobro a estado mora',
+    description:
+      'Busca todas las cuentas de cobro con estado pendiente cuya fecha de cobro ya pasó y las actualiza a estado mora',
+  })
+  @ApiOkResponse({
+    description: 'Proceso de actualización completado exitosamente',
+    type: ActualizarMoraResponseDto,
+  })
+  async actualizarCuentasEnMora(): Promise<ActualizarMoraResponseDto> {
+    try {
+      const resultado =
+        await this.cuentasCobroService.actualizarCuentasEnMora();
+      return plainToInstance(ActualizarMoraResponseDto, resultado, {
+        excludeExtraneousValues: true,
+      });
     } catch (error) {
       this.logger.error({ error: JSON.stringify(error) });
       this.manejadorError.resolverErrorApi(error);

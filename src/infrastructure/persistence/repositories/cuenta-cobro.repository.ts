@@ -1,5 +1,7 @@
 import { Op } from 'sequelize';
+import * as moment from 'moment';
 import { CuentaCobroModel } from '../models/cuenta-cobro.model';
+import { EEstadoCuentaCobro } from '../../../domain/enums/estado-cuenta-cobro.enum';
 import { CuentaCobroServicioModel } from '../models/cuenta-cobro-servicio.model';
 import { ClienteModel } from '../models/cliente.model';
 import { ConceptoAdicionalModel } from '../models/concepto-adicional.model';
@@ -174,5 +176,46 @@ export class CuentaCobroRepository {
 
     const cuentaCobro = await CuentaCobroModel.findByPk(id);
     return Transformador.extraerDataValues(cuentaCobro);
+  }
+
+  static async buscarCuentasPendientesConFechaPasada(): Promise<
+    CuentaCobroModel[]
+  > {
+    const fechaActual = moment().startOf('day').toDate();
+
+    const cuentas = await CuentaCobroModel.findAll({
+      where: {
+        estado: EEstadoCuentaCobro.PENDIENTE,
+        fechaCobro: {
+          [Op.lt]: fechaActual,
+        },
+      },
+      paranoid: true,
+    });
+
+    return Transformador.extraerDataValues(cuentas);
+  }
+
+  static async actualizarEstadoAMora(
+    ids: number[],
+  ): Promise<number> {
+    if (ids.length === 0) {
+      return 0;
+    }
+
+    const [affectedRows] = await CuentaCobroModel.update(
+      {
+        estado: EEstadoCuentaCobro.MORA,
+      },
+      {
+        where: {
+          id: {
+            [Op.in]: ids,
+          },
+        },
+      },
+    );
+
+    return affectedRows;
   }
 }
