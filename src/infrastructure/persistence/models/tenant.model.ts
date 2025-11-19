@@ -24,6 +24,6 @@ export class TenantModel extends Model {
 
   @AllowNull(false)
   @Column({ type: DataType.STRING(150) })
-  nombre!: string;
+  declare nombre: string;
 }
 
