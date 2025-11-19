@@ -34,22 +34,20 @@ export class CuentasCobroService {
     }
   }
 
-  async actualizarCuentasEnMora(): Promise<{
-    cuentasActualizadas: number;
-    mensaje: string;
-  }> {
+  async actualizarCuentasEnMora(): Promise<void> {
     try {
-      this.logger.log('Iniciando proceso de actualización de cuentas en mora...');
+      this.logger.log(
+        'Iniciando proceso de actualización de cuentas en mora...',
+      );
 
       const cuentasPendientesConFechaPasada =
         await CuentaCobroRepository.buscarCuentasPendientesConFechaPasada();
 
       if (cuentasPendientesConFechaPasada.length === 0) {
-        this.logger.log('No se encontraron cuentas pendientes con fecha pasada');
-        return {
-          cuentasActualizadas: 0,
-          mensaje: 'No se encontraron cuentas pendientes con fecha pasada',
-        };
+        this.logger.log(
+          'No se encontraron cuentas pendientes con fecha pasada',
+        );
+        return;
       }
 
       const ids = cuentasPendientesConFechaPasada.map((cuenta) => cuenta.id);
@@ -60,17 +58,8 @@ export class CuentasCobroService {
       this.logger.log(
         `Se actualizaron ${cuentasActualizadas} cuentas de cobro a estado mora`,
       );
-
-      return {
-        cuentasActualizadas,
-        mensaje: `Se actualizaron ${cuentasActualizadas} cuentas de cobro a estado mora`,
-      };
     } catch (error) {
-      this.logger.error(
-        'Error al actualizar cuentas en mora:',
-        error,
-      );
-      throw error;
+      this.logger.error('Error al actualizar cuentas en mora:', error);
     }
   }
 }

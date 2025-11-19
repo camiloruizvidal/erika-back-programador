@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import * as moment from 'moment';
+import moment from 'moment';
 import { CuentaCobroModel } from '../models/cuenta-cobro.model';
 import { EEstadoCuentaCobro } from '../../../domain/enums/estado-cuenta-cobro.enum';
 import { CuentaCobroServicioModel } from '../models/cuenta-cobro-servicio.model';
@@ -196,9 +196,7 @@ export class CuentaCobroRepository {
     return Transformador.extraerDataValues(cuentas);
   }
 
-  static async actualizarEstadoAMora(
-    ids: number[],
-  ): Promise<number> {
+  static async actualizarEstadoAMora(ids: number[]): Promise<number> {
     if (ids.length === 0) {
       return 0;
     }

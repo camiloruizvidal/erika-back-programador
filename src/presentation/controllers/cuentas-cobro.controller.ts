@@ -1,22 +1,22 @@
+import type { Response } from 'express';
 import {
   Controller,
   Post,
-  Get,
   HttpCode,
   HttpStatus,
   Logger,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
+  ApiNoContentResponse,
   ApiCreatedResponse,
-  ApiOkResponse,
 } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
 import { CuentasCobroService } from '../../application/services/cuentas-cobro.service';
 import { ManejadorError } from '../../utils/manejador-error/manejador-error';
 import { GenerarCuentasCobroResponseDto } from '../dto/generar-cuentas-cobro.response.dto';
-import { ActualizarMoraResponseDto } from '../dto/actualizar-mora.response.dto';
 
 @ApiTags('Cuentas de Cobro')
 @Controller('api/v1/billing')
@@ -45,7 +45,8 @@ export class CuentasCobroController {
       'CuentasCobroController',
     );
     try {
-      const resultado = await this.cuentasCobroService.iniciarGeneracionCuentasCobro();
+      const resultado =
+        await this.cuentasCobroService.iniciarGeneracionCuentasCobro();
       return plainToInstance(GenerarCuentasCobroResponseDto, resultado);
     } catch (error) {
       this.logger.error({ error: JSON.stringify(error) });
@@ -53,27 +54,20 @@ export class CuentasCobroController {
     }
   }
 
-  @Get('actualizar-mora')
-  @HttpCode(HttpStatus.OK)
+  @Post('actualizar-mora')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Actualizar cuentas de cobro a estado mora',
     description:
-      'Busca todas las cuentas de cobro con estado pendiente cuya fecha de cobro ya pasó y las actualiza a estado mora',
+      'Inicia el proceso asíncrono de actualización de cuentas de cobro a estado mora. Busca todas las cuentas de cobro con estado pendiente cuya fecha de cobro ya pasó y las actualiza a estado mora. Este proceso se ejecuta en segundo plano y puede tomar tiempo dependiendo de la cantidad de cuentas a actualizar.',
   })
-  @ApiOkResponse({
-    description: 'Proceso de actualización completado exitosamente',
-    type: ActualizarMoraResponseDto,
+  @ApiNoContentResponse({
+    description: 'Proceso de actualización iniciado exitosamente',
   })
-  async actualizarCuentasEnMora(): Promise<ActualizarMoraResponseDto> {
-    try {
-      const resultado =
-        await this.cuentasCobroService.actualizarCuentasEnMora();
-      return plainToInstance(ActualizarMoraResponseDto, resultado, {
-        excludeExtraneousValues: true,
-      });
-    } catch (error) {
+  actualizarCuentasEnMora(@Res() response: Response): void {
+    response.status(HttpStatus.NO_CONTENT).send();
+    this.cuentasCobroService.actualizarCuentasEnMora().catch((error) => {
       this.logger.error({ error: JSON.stringify(error) });
-      this.manejadorError.resolverErrorApi(error);
-    }
+    });
   }
 }
